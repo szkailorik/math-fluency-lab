@@ -1,13 +1,15 @@
 :root {
-  --bg: #f1f5f9;
-  --ink: #0f172a;
+  --bg: #eef2ff;
+  --ink: #0b1120;
   --muted: #475569;
-  --primary: #0ea5e9;
-  --primary-dark: #0c4a6e;
+  --primary: #2563eb;
+  --primary-dark: #1e3a8a;
   --accent: #f59e0b;
-  --card: #ffffff;
+  --card: rgba(255, 255, 255, 0.86);
+  --card-strong: #ffffff;
   --good: #16a34a;
   --bad: #dc2626;
+  --shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
 }
 
 * {
@@ -17,7 +19,11 @@
 body {
   margin: 0;
   font-family: "Avenir Next", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
-  background: radial-gradient(circle at top left, #e0f2fe 0%, #f1f5f9 60%, #f8fafc 100%);
+  background:
+    radial-gradient(circle at 10% 10%, rgba(59, 130, 246, 0.25), transparent 45%),
+    radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.18), transparent 40%),
+    radial-gradient(circle at 80% 90%, rgba(14, 116, 144, 0.18), transparent 45%),
+    linear-gradient(135deg, #eff6ff 0%, #f8fafc 45%, #f1f5f9 100%);
   color: var(--ink);
 }
 
@@ -32,8 +38,9 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  background: linear-gradient(120deg, #0ea5e9, #38bdf8);
+  background: linear-gradient(120deg, #1d4ed8, #38bdf8);
   color: white;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
 }
 
 .brand {
@@ -46,10 +53,11 @@ body {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: #0c4a6e;
+  background: rgba(15, 23, 42, 0.4);
   display: grid;
   place-items: center;
   font-weight: 700;
+  letter-spacing: 1px;
 }
 
 .brand-title {
@@ -76,9 +84,11 @@ main {
 
 .card {
   background: var(--card);
-  border-radius: 18px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
   padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
 }
 
 .grid {
@@ -99,6 +109,7 @@ button {
   font-size: 14px;
   cursor: pointer;
   transition: transform 0.08s ease;
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.25);
 }
 
 button:hover {
@@ -111,9 +122,10 @@ button.secondary {
 }
 
 button.ghost {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.7);
   color: var(--primary-dark);
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: none;
 }
 
 .file-btn input {
@@ -233,7 +245,8 @@ input[type="number"] {
 .panel {
   padding: 12px 16px;
   border-radius: 12px;
-  background: rgba(14, 165, 233, 0.1);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .notice {
@@ -248,6 +261,16 @@ input[type="number"] {
   display: grid;
   gap: 8px;
   font-size: 15px;
+}
+
+.knowledge-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.knowledge-card {
+  background: var(--card-strong);
 }
 
 .mastery-unknown {

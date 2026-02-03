@@ -468,6 +468,9 @@ function renderKnowledge(profile) {
       title: "小数点移动",
       topicId: "decimal-shift",
       points: [
+        "0.1 = 十分之一，0.01 = 百分之一，0.001 = 千分之一",
+        "0.几 就是 十分之几，比如 0.3 = 3/10",
+        "0.0几 就是 百分之几，比如 0.07 = 7/100",
         "×10 小数点向右移一位",
         "×100 小数点向右移两位",
         "÷10 小数点向左移一位",
@@ -510,18 +513,20 @@ function renderKnowledge(profile) {
         <h2>集中复习卡片</h2>
         <p class="notice">适合集中记忆与快速回顾，按模块梳理。</p>
       </div>
-      ${items
-        .map(
-          (item) => `
-        <div class="card">
-          <div class="badge ${masteryClass(item.topicId)}">${item.title}</div>
-          <ul class="knowledge-list">
-            ${item.points.map((p) => `<li>${p}</li>`).join("")}
-          </ul>
-        </div>
-      `
-        )
-        .join("")}
+      <div class="knowledge-grid">
+        ${items
+          .map(
+            (item) => `
+          <div class="card knowledge-card">
+            <div class="badge ${masteryClass(item.topicId)}">${item.title}</div>
+            <ul class="knowledge-list">
+              ${item.points.map((p) => `<li>${p}</li>`).join("")}
+            </ul>
+          </div>
+        `
+          )
+          .join("")}
+      </div>
       <div class="card">
         <button id="backToPractice">返回练习</button>
       </div>
