@@ -104,7 +104,6 @@ const topics = [
       }
       return questionCalc(`${p.dec} = ? (分数)`, p.frac, "fill", "fraction-decimal", ["fraction-decimal", "conversion"]);
     },
-    match: () => matchQuestion("fraction-decimal"),
     identify: () => trueFalseIdentify("fraction-decimal"),
   },
   {
@@ -151,7 +150,6 @@ let session = {
   currentQuestion: null,
   waitingNext: false,
   questionStart: null,
-  matchState: null,
   viewMode: "practice",
 };
 
@@ -172,37 +170,37 @@ function questionCalc(prompt, answer, type, topicId, tags = []) {
   return {
     id: `q_${Date.now()}_${Math.random().toString(16).slice(2)}`,
     topicId,
-    type,
+    type: "choice",
     prompt,
     answer: String(answer),
     tags,
+    choices: buildChoices(String(answer), topicId),
   };
 }
 
-function matchQuestion(topicId) {
-  const pairs = [
-    { left: "1/2", right: "0.5" },
-    { left: "1/4", right: "0.25" },
-    { left: "3/4", right: "0.75" },
-    { left: "1/5", right: "0.2" },
-    { left: "2/5", right: "0.4" },
-    { left: "3/5", right: "0.6" },
-    { left: "4/5", right: "0.8" },
-    { left: "1/8", right: "0.125" },
-  ];
-  const sample = shuffle(pairs).slice(0, 3);
-  const left = sample.map((p) => p.left);
-  const right = shuffle(sample.map((p) => p.right));
-  return {
-    id: `m_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-    topicId,
-    type: "match",
-    prompt: "把分数和小数配对",
-    pairs: sample,
-    left,
-    right,
-    tags: ["fraction-decimal", "conversion"],
-  };
+function buildChoices(answer, topicId) {
+  const options = new Set([answer]);
+  const numeric = !Number.isNaN(Number(answer));
+  const add = (val) => options.add(String(val));
+
+  if (topicId === "fraction-decimal") {
+    const fractions = ["1/2", "1/4", "3/4", "1/5", "2/5", "3/5", "4/5", "1/8", "3/8", "5/8", "7/8"];
+    const decimals = ["0.5", "0.25", "0.75", "0.2", "0.4", "0.6", "0.8", "0.125", "0.375", "0.625", "0.875"];
+    const pool = answer.includes("/") ? fractions : decimals;
+    shuffle(pool).forEach((v) => add(v));
+  } else if (numeric) {
+    const base = Number(answer);
+    const deltas = [1, 2, 5, 10];
+    deltas.forEach((d) => add(base + d));
+    deltas.forEach((d) => add(base - d));
+    add(base * 10);
+    add(base / 10);
+  } else {
+    add(`${answer}0`);
+    add(answer.replace("0", "1"));
+  }
+
+  return shuffle(Array.from(options)).slice(0, 4);
 }
 
 function trueFalseIdentify(topicId) {
@@ -364,48 +362,16 @@ function renderPractice(profile, question) {
 
   const answerArea = document.getElementById("answerArea");
   session.questionStart = Date.now();
-  if (question.type === "choice") {
-    answerArea.innerHTML = `
-      <div class="choice-list">
-        ${question.choices
-          .map((c) => `<div class="choice" data-choice="${c}">${c}</div>`)
-          .join("")}
-      </div>
-    `;
-    document.querySelectorAll(".choice").forEach((node) => {
-      node.onclick = () => handleAnswer(node.dataset.choice);
-    });
-  } else if (question.type === "match") {
-    session.matchState = { selectedLeft: null, pairs: {} };
-    answerArea.innerHTML = `
-      <div class="match-grid">
-        <div class="match-col">
-          ${question.left.map((item) => `<div class="match-item" data-side="left" data-value="${item}">${item}</div>`).join("")}
-        </div>
-        <div class="match-col">
-          ${question.right.map((item) => `<div class="match-item" data-side="right" data-value="${item}">${item}</div>`).join("")}
-        </div>
-      </div>
-      <div class="input-row" style="margin-top: 12px;">
-        <button id="matchSubmit">提交配对</button>
-      </div>
-    `;
-    document.querySelectorAll(".match-item").forEach((node) => {
-      node.onclick = () => handleMatchSelect(node.dataset.side, node.dataset.value);
-    });
-    document.getElementById("matchSubmit").onclick = () => handleMatchSubmit(question);
-  } else {
-    answerArea.innerHTML = `
-      <div class="input-row">
-        <input id="answerInput" type="text" placeholder="请输入答案" />
-        <button id="submitBtn">提交</button>
-      </div>
-    `;
-    document.getElementById("submitBtn").onclick = () => {
-      const val = document.getElementById("answerInput").value.trim();
-      handleAnswer(val);
-    };
-  }
+  answerArea.innerHTML = `
+    <div class="choice-list">
+      ${question.choices
+        .map((c) => `<div class="choice" data-choice="${c}">${c}</div>`)
+        .join("")}
+    </div>
+  `;
+  document.querySelectorAll(".choice").forEach((node) => {
+    node.onclick = () => handleAnswer(node.dataset.choice);
+  });
 
   document.getElementById("practiceBtn").onclick = () => {
     session.viewMode = "practice";
@@ -589,67 +555,6 @@ function handleAnswer(raw) {
   showFeedback(correct, question.answer);
 }
 
-function handleMatchSelect(side, value) {
-  if (!session.matchState) return;
-  if (side === "left") {
-    session.matchState.selectedLeft = value;
-    highlightMatch();
-    return;
-  }
-  if (side === "right" && session.matchState.selectedLeft) {
-    session.matchState.pairs[session.matchState.selectedLeft] = value;
-    session.matchState.selectedLeft = null;
-    highlightMatch();
-  }
-}
-
-function highlightMatch() {
-  document.querySelectorAll(".match-item").forEach((node) => {
-    const side = node.dataset.side;
-    const value = node.dataset.value;
-    const isSelected = side === "left" && session.matchState?.selectedLeft === value;
-    const paired = Object.values(session.matchState?.pairs || {}).includes(value);
-    node.classList.toggle("active", isSelected);
-    node.classList.toggle("paired", paired);
-  });
-}
-
-function handleMatchSubmit(question) {
-  const profile = getProfile();
-  if (!profile) return;
-  const mapping = session.matchState?.pairs || {};
-  const allMatched = question.left.every((left) => mapping[left]);
-  if (!allMatched) {
-    alert("请先完成所有配对");
-    return;
-  }
-  const correct = question.pairs.every((p) => mapping[p.left] === p.right);
-  const elapsed = session.questionStart ? Date.now() - session.questionStart : 0;
-  const topicState = ensureTopic(profile, question.topicId);
-
-  profile.stats.totalAnswered += 1;
-  profile.stats.totalTimeMs += elapsed;
-  profile.stats.avgTimeMs = Math.round(
-    profile.stats.totalTimeMs / profile.stats.totalAnswered
-  );
-  if (correct) {
-    profile.stats.totalCorrect += 1;
-    profile.stats.streak += 1;
-    profile.stats.bestStreak = Math.max(profile.stats.bestStreak, profile.stats.streak);
-    topicState.correct += 1;
-    topicState.wrongStreak = 0;
-  } else {
-    profile.stats.streak = 0;
-    topicState.wrong += 1;
-    topicState.wrongStreak += 1;
-    recordMistake(profile, question);
-    profile.reviewQueue.push({ question, dueIn: 3 });
-  }
-  topicState.lastSeen = Date.now();
-  awardBadges(profile);
-  saveProfiles();
-  showFeedback(correct, "请核对配对关系");
-}
 
 function showFeedback(correct, answer) {
   const feedback = document.getElementById("feedback");
@@ -686,11 +591,6 @@ function nextQuestion() {
   if (forcedTopic) {
     ensureTopic(profile, forcedTopic.id).wrongStreak = 0;
     return forcedTopic.identify();
-  }
-
-  if (Math.random() > 0.82) {
-    const matchTopic = topics.find((t) => t.id === "fraction-decimal");
-    return matchTopic.match();
   }
 
   const weights = topics.map((t) => {
