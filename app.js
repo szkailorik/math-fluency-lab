@@ -152,6 +152,7 @@ let session = {
   waitingNext: false,
   questionStart: null,
   matchState: null,
+  viewMode: "practice",
 };
 
 function randInt(min, max) {
@@ -275,6 +276,10 @@ function render() {
     renderLogin();
     return;
   }
+  if (session.viewMode === "knowledge") {
+    renderKnowledge(profile);
+    return;
+  }
   if (!session.currentQuestion) {
     session.currentQuestion = nextQuestion();
   }
@@ -351,6 +356,7 @@ function renderPractice(profile, question) {
       <div class="card grid grid-2">
         <button id="practiceBtn">自由练习</button>
         <button class="secondary" id="dailyBtn">每日挑战</button>
+        <button class="ghost" id="knowledgeBtn">知识点复习</button>
         <button class="ghost" id="resetUserBtn">删除当前用户</button>
       </div>
     </div>
@@ -402,13 +408,19 @@ function renderPractice(profile, question) {
   }
 
   document.getElementById("practiceBtn").onclick = () => {
+    session.viewMode = "practice";
     session.mode = "practice";
     session.currentQuestion = nextQuestion();
     render();
   };
   document.getElementById("dailyBtn").onclick = () => {
+    session.viewMode = "practice";
     session.mode = "daily";
     session.currentQuestion = nextQuestion();
+    render();
+  };
+  document.getElementById("knowledgeBtn").onclick = () => {
+    session.viewMode = "knowledge";
     render();
   };
   document.getElementById("resetUserBtn").onclick = () => {
@@ -421,6 +433,90 @@ function renderPractice(profile, question) {
   };
 
   setStatus(`进度本地保存 | 题目数 ${total}`);
+}
+
+function renderKnowledge(profile) {
+  const items = [
+    {
+      title: "大九九",
+      points: [
+        "11×11=121，12×12=144，13×13=169",
+        "14×14=196，15×15=225",
+        "16×16=256，17×17=289，18×18=324，19×19=361",
+      ],
+    },
+    {
+      title: "常用数感",
+      points: [
+        "25×4=100，75×4=300",
+        "125×8=1000，12.5×8=100",
+        "2.5×40=100，4×25=100",
+      ],
+    },
+    {
+      title: "小数点移动",
+      points: [
+        "×10 小数点向右移一位",
+        "×100 小数点向右移两位",
+        "÷10 小数点向左移一位",
+      ],
+    },
+    {
+      title: "分数小数互换",
+      points: [
+        "1/2=0.5，1/4=0.25，3/4=0.75",
+        "1/5=0.2，2/5=0.4，3/5=0.6，4/5=0.8",
+        "1/8=0.125，3/8=0.375，5/8=0.625，7/8=0.875",
+      ],
+    },
+    {
+      title: "单位换算",
+      points: [
+        "1 米=10 分米=100 厘米",
+        "1 升=1000 毫升",
+        "1 千克=1000 克",
+        "1 元=10 角=100 分",
+      ],
+    },
+    {
+      title: "数零训练",
+      points: [
+        "10×10=100，100×10=1000",
+        "1000÷10=100，100÷10=10",
+        "先数零位数，再判断小数点位置",
+      ],
+    },
+  ];
+
+  view.innerHTML = `
+    <div class="grid" style="gap: 20px;">
+      <div class="card">
+        <div class="badge">知识点复习</div>
+        <h2>集中复习卡片</h2>
+        <p class="notice">适合集中记忆与快速回顾，按模块梳理。</p>
+      </div>
+      ${items
+        .map(
+          (item) => `
+        <div class="card">
+          <div class="badge">${item.title}</div>
+          <ul class="knowledge-list">
+            ${item.points.map((p) => `<li>${p}</li>`).join("")}
+          </ul>
+        </div>
+      `
+        )
+        .join("")}
+      <div class="card">
+        <button id="backToPractice">返回练习</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("backToPractice").onclick = () => {
+    session.viewMode = "practice";
+    render();
+  };
+  setStatus(`知识点复习 | 用户 ${profile.name}`);
 }
 
 function handleAnswer(raw) {

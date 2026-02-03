@@ -241,3 +241,11 @@ input[type="number"] {
   color: var(--muted);
   line-height: 1.5;
 }
+
+.knowledge-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  font-size: 15px;
+}
