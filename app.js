@@ -505,6 +505,10 @@ function renderKnowledge(profile) {
       ],
     },
   ];
+  const weakTopics = items.filter((item) => masteryClass(item.topicId) === "mastery-weak");
+  const weakList = weakTopics.length
+    ? weakTopics.map((item) => `<span class="weak-chip">${item.title}</span>`).join("")
+    : `<span class="weak-chip ok">暂无薄弱点，继续保持！</span>`;
 
   view.innerHTML = `
     <div class="grid" style="gap: 20px;">
@@ -512,6 +516,11 @@ function renderKnowledge(profile) {
         <div class="badge">知识点复习</div>
         <h2>集中复习卡片</h2>
         <p class="notice">适合集中记忆与快速回顾，按模块梳理。</p>
+      </div>
+      <div class="card alert-card">
+        <div class="badge mastery-weak">薄弱点提醒</div>
+        <p class="notice">建议优先复习这些模块：</p>
+        <div class="weak-list">${weakList}</div>
       </div>
       <div class="knowledge-grid">
         ${items
