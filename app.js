@@ -23,8 +23,11 @@ const defaultProfile = (name) => ({
     totalCorrect: 0,
     streak: 0,
     bestStreak: 0,
+    totalTimeMs: 0,
+    avgTimeMs: 0,
   },
   topics: {},
+  topicMistakes: {},
   reviewQueue: [],
   daily: {
     date: null,
@@ -41,7 +44,7 @@ const topics = [
     generator: () => {
       const a = randInt(11, 19);
       const b = randInt(11, 19);
-      return questionCalc(`${a} × ${b} = ?`, a * b, "fill", "big-multiply");
+      return questionCalc(`${a} × ${b} = ?`, a * b, "fill", "big-multiply", ["big-multiply", "multiplication"]);
     },
     identify: () => trueFalseIdentify("big-multiply"),
   },
@@ -55,9 +58,13 @@ const topics = [
         { a: 50, b: 2 },
         { a: 75, b: 4 },
         { a: 20, b: 5 },
+        { a: 12.5, b: 8 },
+        { a: 0.25, b: 4 },
+        { a: 2.5, b: 40 },
+        { a: 4, b: 25 },
       ];
       const p = patterns[randInt(0, patterns.length - 1)];
-      return questionCalc(`${p.a} × ${p.b} = ?`, p.a * p.b, "fill", "number-sense");
+      return questionCalc(`${p.a} × ${p.b} = ?`, p.a * p.b, "fill", "number-sense", ["number-sense", "place-value"]);
     },
     identify: () => trueFalseIdentify("number-sense"),
   },
@@ -69,7 +76,7 @@ const topics = [
       const factor = [10, 100, 1000][randInt(0, 2)];
       const op = Math.random() > 0.5 ? "×" : "÷";
       const answer = op === "×" ? base * factor : base / factor;
-      return questionCalc(`${base} ${op} ${factor} = ?`, answer, "fill", "decimal-shift");
+      return questionCalc(`${base} ${op} ${factor} = ?`, answer, "fill", "decimal-shift", ["decimal-shift", "place-value"]);
     },
     identify: () => trueFalseIdentify("decimal-shift"),
   },
@@ -92,9 +99,9 @@ const topics = [
       ];
       const p = pairs[randInt(0, pairs.length - 1)];
       if (Math.random() > 0.5) {
-        return questionCalc(`${p.frac} = ? (小数)`, p.dec, "fill", "fraction-decimal");
+        return questionCalc(`${p.frac} = ? (小数)`, p.dec, "fill", "fraction-decimal", ["fraction-decimal", "conversion"]);
       }
-      return questionCalc(`${p.dec} = ? (分数)`, p.frac, "fill", "fraction-decimal");
+      return questionCalc(`${p.dec} = ? (分数)`, p.frac, "fill", "fraction-decimal", ["fraction-decimal", "conversion"]);
     },
     identify: () => trueFalseIdentify("fraction-decimal"),
   },
@@ -111,9 +118,13 @@ const topics = [
         { q: "900 克 = ? 千克", a: "0.9" },
         { q: "3 元 5 角 = ? 元", a: "3.5" },
         { q: "4.2 元 = ? 角", a: "42" },
+        { q: "1 分米 = ? 厘米", a: "10" },
+        { q: "2.3 米 = ? 分米", a: "23" },
+        { q: "0.8 升 = ? 毫升", a: "800" },
+        { q: "250 毫升 = ? 升", a: "0.25" },
       ];
       const item = items[randInt(0, items.length - 1)];
-      return questionCalc(item.q, item.a, "fill", "unit-convert");
+      return questionCalc(item.q, item.a, "fill", "unit-convert", ["unit-convert", "unit"]);
     },
     identify: () => trueFalseIdentify("unit-convert"),
   },
@@ -125,7 +136,7 @@ const topics = [
       const factor = [10, 100][randInt(0, 1)];
       const op = Math.random() > 0.5 ? "×" : "÷";
       const answer = op === "×" ? base * factor : base / factor;
-      return questionCalc(`${base} ${op} ${factor} = ?`, answer, "fill", "powers-of-ten");
+      return questionCalc(`${base} ${op} ${factor} = ?`, answer, "fill", "powers-of-ten", ["powers-of-ten", "place-value"]);
     },
     identify: () => trueFalseIdentify("powers-of-ten"),
   },
@@ -137,6 +148,7 @@ let session = {
   mode: "practice",
   currentQuestion: null,
   waitingNext: false,
+  questionStart: null,
 };
 
 function randInt(min, max) {
@@ -152,13 +164,14 @@ function mulberry32(seed) {
   };
 }
 
-function questionCalc(prompt, answer, type, topicId) {
+function questionCalc(prompt, answer, type, topicId, tags = []) {
   return {
     id: `q_${Date.now()}_${Math.random().toString(16).slice(2)}`,
     topicId,
     type,
     prompt,
     answer: String(answer),
+    tags,
   };
 }
 
@@ -176,6 +189,20 @@ function trueFalseIdentify(topicId) {
     answer: isTrue ? "对" : "错",
     choices: ["对", "错"],
   };
+}
+
+function ensureMistakeBucket(profile, topicId) {
+  if (!profile.topicMistakes[topicId]) {
+    profile.topicMistakes[topicId] = {};
+  }
+  return profile.topicMistakes[topicId];
+}
+
+function recordMistake(profile, question) {
+  const bucket = ensureMistakeBucket(profile, question.topicId);
+  question.tags.forEach((tag) => {
+    bucket[tag] = (bucket[tag] || 0) + 1;
+  });
 }
 
 function loadProfiles() {
@@ -257,6 +284,7 @@ function renderPractice(profile, question) {
   const topic = topics.find((t) => t.id === question.topicId);
   const total = profile.stats.totalAnswered;
   const accuracy = total ? Math.round((profile.stats.totalCorrect / total) * 100) : 0;
+  const avgTime = profile.stats.avgTimeMs ? `${profile.stats.avgTimeMs}ms` : "--";
 
   view.innerHTML = `
     <div class="grid" style="gap: 20px;">
@@ -266,6 +294,7 @@ function renderPractice(profile, question) {
           <div class="panel">准确率: ${accuracy}%</div>
           <div class="panel">连对: ${profile.stats.streak}</div>
           <div class="panel">最佳连对: ${profile.stats.bestStreak}</div>
+          <div class="panel">平均用时: ${avgTime}</div>
           <div class="panel">模式: ${session.mode === "daily" ? "每日挑战" : "自由练习"}</div>
         </div>
       </div>
@@ -286,6 +315,7 @@ function renderPractice(profile, question) {
   `;
 
   const answerArea = document.getElementById("answerArea");
+  session.questionStart = Date.now();
   if (question.type === "choice") {
     answerArea.innerHTML = `
       <div class="choice-list">
@@ -340,8 +370,13 @@ function handleAnswer(raw) {
   const topicState = ensureTopic(profile, question.topicId);
   const answer = normalizeAnswer(raw);
   const correct = normalizeAnswer(question.answer) === answer;
+  const elapsed = session.questionStart ? Date.now() - session.questionStart : 0;
 
   profile.stats.totalAnswered += 1;
+  profile.stats.totalTimeMs += elapsed;
+  profile.stats.avgTimeMs = Math.round(
+    profile.stats.totalTimeMs / profile.stats.totalAnswered
+  );
   if (correct) {
     profile.stats.totalCorrect += 1;
     profile.stats.streak += 1;
@@ -352,6 +387,7 @@ function handleAnswer(raw) {
     profile.stats.streak = 0;
     topicState.wrong += 1;
     topicState.wrongStreak += 1;
+    recordMistake(profile, question);
     profile.reviewQueue.push({
       question,
       dueIn: 3,
@@ -404,7 +440,10 @@ function nextQuestion() {
 
   const weights = topics.map((t) => {
     const st = ensureTopic(profile, t.id);
-    return 1 + st.wrong * 1.5;
+    const mistakes = ensureMistakeBucket(profile, t.id);
+    const mistakeScore = Object.values(mistakes).reduce((sum, v) => sum + v, 0);
+    const speedPenalty = profile.stats.avgTimeMs > 5000 ? 0.8 : 0.2;
+    return 1 + st.wrong * 1.5 + mistakeScore * 0.4 + speedPenalty;
   });
   const pick = weightedPick(topics, weights);
   return pick.generator();
@@ -424,7 +463,7 @@ function nextDailyQuestion(profile) {
   const topic = dailyTopics[index];
   profile.daily.index += 1;
   saveProfiles();
-  if (random() > 0.6) {
+  if (random() > 0.7) {
     return topic.identify();
   }
   return topic.generator();
