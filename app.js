@@ -188,6 +188,12 @@ function buildChoices(answer, topicId) {
     const decimals = ["0.5", "0.25", "0.75", "0.2", "0.4", "0.6", "0.8", "0.125", "0.375", "0.625", "0.875"];
     const pool = answer.includes("/") ? fractions : decimals;
     shuffle(pool).forEach((v) => add(v));
+  } else if (topicId === "decimal-shift") {
+    const decimalPool = ["0.1", "0.01", "0.001", "1", "10", "0.001", "0.0001"];
+    decimalPool.forEach((v) => add(v));
+  } else if (topicId === "unit-convert") {
+    const unitPool = ["10", "100", "1000", "0.1", "0.01", "0.001", "1", "2.5", "25", "250"];
+    unitPool.forEach((v) => add(v));
   } else if (numeric) {
     const base = Number(answer);
     const deltas = [1, 2, 5, 10];
