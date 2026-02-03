@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0c4a6e" />
+    <title>Math Fluency Lab</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">MF</div>
+          <div>
+            <div class="brand-title">Math Fluency Lab</div>
+            <div class="brand-sub">数感与熟练度训练</div>
+          </div>
+        </div>
+        <div class="status" id="status"></div>
+      </header>
+
+      <main id="view"></main>
+
+      <footer class="footer">
+        <div>自由练习 + 每日挑战</div>
+        <div class="footer-actions">
+          <button class="ghost" id="exportBtn">导出进度</button>
+          <label class="ghost file-btn">
+            导入进度
+            <input type="file" id="importInput" accept="application/json" />
+          </label>
+        </div>
+      </footer>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker.register("sw.js");
+        });
+      }
+    </script>
+  </body>
+</html>
