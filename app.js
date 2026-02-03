@@ -18,6 +18,7 @@ const defaultTopicState = () => ({
 const defaultProfile = (name) => ({
   name,
   createdAt: Date.now(),
+  version: 1,
   stats: {
     totalAnswered: 0,
     totalCorrect: 0,
@@ -103,6 +104,7 @@ const topics = [
       }
       return questionCalc(`${p.dec} = ? (分数)`, p.frac, "fill", "fraction-decimal", ["fraction-decimal", "conversion"]);
     },
+    match: () => matchQuestion("fraction-decimal"),
     identify: () => trueFalseIdentify("fraction-decimal"),
   },
   {
@@ -149,6 +151,7 @@ let session = {
   currentQuestion: null,
   waitingNext: false,
   questionStart: null,
+  matchState: null,
 };
 
 function randInt(min, max) {
@@ -172,6 +175,32 @@ function questionCalc(prompt, answer, type, topicId, tags = []) {
     prompt,
     answer: String(answer),
     tags,
+  };
+}
+
+function matchQuestion(topicId) {
+  const pairs = [
+    { left: "1/2", right: "0.5" },
+    { left: "1/4", right: "0.25" },
+    { left: "3/4", right: "0.75" },
+    { left: "1/5", right: "0.2" },
+    { left: "2/5", right: "0.4" },
+    { left: "3/5", right: "0.6" },
+    { left: "4/5", right: "0.8" },
+    { left: "1/8", right: "0.125" },
+  ];
+  const sample = shuffle(pairs).slice(0, 3);
+  const left = sample.map((p) => p.left);
+  const right = shuffle(sample.map((p) => p.right));
+  return {
+    id: `m_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    topicId,
+    type: "match",
+    prompt: "把分数和小数配对",
+    pairs: sample,
+    left,
+    right,
+    tags: ["fraction-decimal", "conversion"],
   };
 }
 
@@ -285,6 +314,14 @@ function renderPractice(profile, question) {
   const total = profile.stats.totalAnswered;
   const accuracy = total ? Math.round((profile.stats.totalCorrect / total) * 100) : 0;
   const avgTime = profile.stats.avgTimeMs ? `${profile.stats.avgTimeMs}ms` : "--";
+  const topicSummary = topics
+    .map((t) => {
+      const st = ensureTopic(profile, t.id);
+      const totalTopic = st.correct + st.wrong;
+      const acc = totalTopic ? Math.round((st.correct / totalTopic) * 100) : 0;
+      return `<div class="panel">${t.label}: ${acc}%</div>`;
+    })
+    .join("");
 
   view.innerHTML = `
     <div class="grid" style="gap: 20px;">
@@ -297,6 +334,11 @@ function renderPractice(profile, question) {
           <div class="panel">平均用时: ${avgTime}</div>
           <div class="panel">模式: ${session.mode === "daily" ? "每日挑战" : "自由练习"}</div>
         </div>
+      </div>
+
+      <div class="card">
+        <div class="badge">学习进度卡片</div>
+        <div class="progress-row">${topicSummary}</div>
       </div>
 
       <div class="card">
@@ -327,6 +369,25 @@ function renderPractice(profile, question) {
     document.querySelectorAll(".choice").forEach((node) => {
       node.onclick = () => handleAnswer(node.dataset.choice);
     });
+  } else if (question.type === "match") {
+    session.matchState = { selectedLeft: null, pairs: {} };
+    answerArea.innerHTML = `
+      <div class="match-grid">
+        <div class="match-col">
+          ${question.left.map((item) => `<div class="match-item" data-side="left" data-value="${item}">${item}</div>`).join("")}
+        </div>
+        <div class="match-col">
+          ${question.right.map((item) => `<div class="match-item" data-side="right" data-value="${item}">${item}</div>`).join("")}
+        </div>
+      </div>
+      <div class="input-row" style="margin-top: 12px;">
+        <button id="matchSubmit">提交配对</button>
+      </div>
+    `;
+    document.querySelectorAll(".match-item").forEach((node) => {
+      node.onclick = () => handleMatchSelect(node.dataset.side, node.dataset.value);
+    });
+    document.getElementById("matchSubmit").onclick = () => handleMatchSubmit(question);
   } else {
     answerArea.innerHTML = `
       <div class="input-row">
@@ -401,6 +462,68 @@ function handleAnswer(raw) {
   showFeedback(correct, question.answer);
 }
 
+function handleMatchSelect(side, value) {
+  if (!session.matchState) return;
+  if (side === "left") {
+    session.matchState.selectedLeft = value;
+    highlightMatch();
+    return;
+  }
+  if (side === "right" && session.matchState.selectedLeft) {
+    session.matchState.pairs[session.matchState.selectedLeft] = value;
+    session.matchState.selectedLeft = null;
+    highlightMatch();
+  }
+}
+
+function highlightMatch() {
+  document.querySelectorAll(".match-item").forEach((node) => {
+    const side = node.dataset.side;
+    const value = node.dataset.value;
+    const isSelected = side === "left" && session.matchState?.selectedLeft === value;
+    const paired = Object.values(session.matchState?.pairs || {}).includes(value);
+    node.classList.toggle("active", isSelected);
+    node.classList.toggle("paired", paired);
+  });
+}
+
+function handleMatchSubmit(question) {
+  const profile = getProfile();
+  if (!profile) return;
+  const mapping = session.matchState?.pairs || {};
+  const allMatched = question.left.every((left) => mapping[left]);
+  if (!allMatched) {
+    alert("请先完成所有配对");
+    return;
+  }
+  const correct = question.pairs.every((p) => mapping[p.left] === p.right);
+  const elapsed = session.questionStart ? Date.now() - session.questionStart : 0;
+  const topicState = ensureTopic(profile, question.topicId);
+
+  profile.stats.totalAnswered += 1;
+  profile.stats.totalTimeMs += elapsed;
+  profile.stats.avgTimeMs = Math.round(
+    profile.stats.totalTimeMs / profile.stats.totalAnswered
+  );
+  if (correct) {
+    profile.stats.totalCorrect += 1;
+    profile.stats.streak += 1;
+    profile.stats.bestStreak = Math.max(profile.stats.bestStreak, profile.stats.streak);
+    topicState.correct += 1;
+    topicState.wrongStreak = 0;
+  } else {
+    profile.stats.streak = 0;
+    topicState.wrong += 1;
+    topicState.wrongStreak += 1;
+    recordMistake(profile, question);
+    profile.reviewQueue.push({ question, dueIn: 3 });
+  }
+  topicState.lastSeen = Date.now();
+  awardBadges(profile);
+  saveProfiles();
+  showFeedback(correct, "请核对配对关系");
+}
+
 function showFeedback(correct, answer) {
   const feedback = document.getElementById("feedback");
   feedback.textContent = correct ? "答对啦！继续保持。" : `答错了，正确答案是 ${answer}`;
@@ -436,6 +559,11 @@ function nextQuestion() {
   if (forcedTopic) {
     ensureTopic(profile, forcedTopic.id).wrongStreak = 0;
     return forcedTopic.identify();
+  }
+
+  if (Math.random() > 0.82) {
+    const matchTopic = topics.find((t) => t.id === "fraction-decimal");
+    return matchTopic.match();
   }
 
   const weights = topics.map((t) => {
@@ -479,6 +607,15 @@ function weightedPick(items, weights) {
   return items[0];
 }
 
+function shuffle(arr) {
+  const copy = arr.slice();
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 function awardBadges(profile) {
   const badges = profile.badges;
   if (profile.stats.bestStreak >= 5 && !badges.includes("连对5")) {
@@ -508,7 +645,10 @@ importInput.onchange = (event) => {
   reader.onload = () => {
     try {
       const data = JSON.parse(reader.result);
-      if (!data.name) throw new Error("无效数据");
+      if (!data.name || !data.stats || !data.topics) throw new Error("无效数据");
+      if (state.profiles[data.name] && !confirm("已有同名用户，是否覆盖？")) {
+        return;
+      }
       state.profiles[data.name] = data;
       currentUser = data.name;
       saveProfiles();
