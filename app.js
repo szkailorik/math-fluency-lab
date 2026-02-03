@@ -436,9 +436,19 @@ function renderPractice(profile, question) {
 }
 
 function renderKnowledge(profile) {
+  const masteryClass = (topicId) => {
+    const st = ensureTopic(profile, topicId);
+    const total = st.correct + st.wrong;
+    if (!total) return "mastery-unknown";
+    const acc = Math.round((st.correct / total) * 100);
+    if (acc >= 85) return "mastery-strong";
+    if (acc >= 65) return "mastery-mid";
+    return "mastery-weak";
+  };
   const items = [
     {
       title: "大九九",
+      topicId: "big-multiply",
       points: [
         "11×11=121，12×12=144，13×13=169",
         "14×14=196，15×15=225",
@@ -447,6 +457,7 @@ function renderKnowledge(profile) {
     },
     {
       title: "常用数感",
+      topicId: "number-sense",
       points: [
         "25×4=100，75×4=300",
         "125×8=1000，12.5×8=100",
@@ -455,6 +466,7 @@ function renderKnowledge(profile) {
     },
     {
       title: "小数点移动",
+      topicId: "decimal-shift",
       points: [
         "×10 小数点向右移一位",
         "×100 小数点向右移两位",
@@ -463,6 +475,7 @@ function renderKnowledge(profile) {
     },
     {
       title: "分数小数互换",
+      topicId: "fraction-decimal",
       points: [
         "1/2=0.5，1/4=0.25，3/4=0.75",
         "1/5=0.2，2/5=0.4，3/5=0.6，4/5=0.8",
@@ -471,6 +484,7 @@ function renderKnowledge(profile) {
     },
     {
       title: "单位换算",
+      topicId: "unit-convert",
       points: [
         "1 米=10 分米=100 厘米",
         "1 升=1000 毫升",
@@ -480,6 +494,7 @@ function renderKnowledge(profile) {
     },
     {
       title: "数零训练",
+      topicId: "powers-of-ten",
       points: [
         "10×10=100，100×10=1000",
         "1000÷10=100，100÷10=10",
@@ -499,7 +514,7 @@ function renderKnowledge(profile) {
         .map(
           (item) => `
         <div class="card">
-          <div class="badge">${item.title}</div>
+          <div class="badge ${masteryClass(item.topicId)}">${item.title}</div>
           <ul class="knowledge-list">
             ${item.points.map((p) => `<li>${p}</li>`).join("")}
           </ul>
